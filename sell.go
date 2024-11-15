@@ -3,7 +3,6 @@ package pumpdotfunsdk
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 	"strconv"
 
@@ -18,10 +17,26 @@ import (
 	"github.com/prdsrm/pumpdotfun-go-sdk/pump"
 )
 
-func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey, mint solana.PublicKey, sellTokenAmount uint64, percentage float64, all bool) error {
+func getComputUnitPriceInstrBuyOrSell(rpcClient *rpc.Client, user solana.PrivateKey, ata solana.PublicKey, mint solana.PublicKey, metadata solana.PublicKey, bondingCurve solana.PublicKey, associatedBondingCurveData solana.PublicKey) (*cb.SetComputeUnitPrice, error) {
+	// create priority fee instructions
+	out, err := rpcClient.GetRecentPrioritizationFees(context.TODO(), solana.PublicKeySlice{user.PublicKey(), pump.ProgramID, pumpFunMintAuthority, globalPumpFunAddress, solana.TokenMetadataProgramID, system.ProgramID, token.ProgramID, associatedtokenaccount.ProgramID, solana.SysVarRentPubkey, pumpFunEventAuthority, mint, metadata})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent prioritization fees: %w", err)
+	}
+	var median uint64
+	length := uint64(len(out))
+	for _, fee := range out {
+		median = fee.PrioritizationFee
+	}
+	median /= length
+	cupInst := cb.NewSetComputeUnitPriceInstruction(median)
+	return cupInst, nil
+}
+
+func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey, mint solana.PublicKey, sellTokenAmount uint64, percentage float64, all bool) (string, error) {
 	// create priority fee instructions
 	culInst := cb.NewSetComputeUnitLimitInstruction(uint32(250000))
-	cupInst := cb.NewSetComputeUnitPriceInstruction(100000)
+	cupInst := cb.NewSetComputeUnitPriceInstruction(uint64(10000))
 	instructions := []solana.Instruction{
 		culInst.Build(),
 		cupInst.Build(),
@@ -29,13 +44,13 @@ func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKe
 	// get sell instructions
 	sellInstructions, err := getSellInstructions(rpcClient, user, mint, sellTokenAmount, percentage, all)
 	if err != nil {
-		return fmt.Errorf("failed to get sell instructions: %w", err)
+		return "", fmt.Errorf("failed to get sell instructions: %w", err)
 	}
 	instructions = append(instructions, sellInstructions)
 	// get recent block hash
 	recent, err := rpcClient.GetLatestBlockhash(context.TODO(), rpc.CommitmentFinalized)
 	if err != nil {
-		return fmt.Errorf("error while getting recent block hash: %w", err)
+		return "", fmt.Errorf("error while getting recent block hash: %w", err)
 	}
 	// create new transaction
 	tx, err := solana.NewTransaction(
@@ -44,7 +59,7 @@ func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKe
 		solana.TransactionPayer(user.PublicKey()),
 	)
 	if err != nil {
-		return fmt.Errorf("error while creating new transaction: %w", err)
+		return "", fmt.Errorf("error while creating new transaction: %w", err)
 	}
 	txSig, err := tx.Sign(
 		func(key solana.PublicKey) *solana.PrivateKey {
@@ -55,7 +70,7 @@ func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKe
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("can't sign transaction: %w", err)
+		return "", fmt.Errorf("can't sign transaction: %w", err)
 	}
 	// NOTE: for debugging, to be removed
 	fmt.Println(tx.String(), txSig[0].String())
@@ -67,10 +82,9 @@ func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKe
 		tx,
 	)
 	if err != nil {
-		return fmt.Errorf("can't send and confirm new transaction: %w", err)
+		return "", fmt.Errorf("can't send and confirm new transaction: %w", err)
 	}
-	log.Println("sell transaction signature: ", sig.String())
-	return nil
+	return sig.String(), nil
 }
 
 // getSellInstructions is a function that returns the pump.fun instructions to sell the token

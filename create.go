@@ -86,21 +86,40 @@ func getBondingCurveAndAssociatedBondingCurve(mint solana.PublicKey) (*BondingCu
 	}, nil
 }
 
-func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey, mint *solana.Wallet, name string, symbol string, uri string, buyAmountSol float64, percentage float64) error {
+func getComputUnitPriceInstr(rpcClient *rpc.Client, user solana.PrivateKey) (*cb.SetComputeUnitPrice, error) {
+	// create priority fee instructions
+	out, err := rpcClient.GetRecentPrioritizationFees(context.TODO(), solana.PublicKeySlice{user.PublicKey(), pump.ProgramID, pumpFunMintAuthority, globalPumpFunAddress, solana.TokenMetadataProgramID, system.ProgramID, token.ProgramID, associatedtokenaccount.ProgramID, solana.SysVarRentPubkey, pumpFunEventAuthority})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent prioritization fees: %w", err)
+	}
+	var median uint64
+	length := uint64(len(out))
+	for _, fee := range out {
+		median = fee.PrioritizationFee
+	}
+	median /= length
+	cupInst := cb.NewSetComputeUnitPriceInstruction(median)
+	return cupInst, nil
+}
+
+func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey, mint *solana.Wallet, name string, symbol string, uri string, buyAmountSol float64, percentage float64) (string, error) {
 	bondingCurveData, err := getBondingCurveAndAssociatedBondingCurve(mint.PublicKey())
 	if err != nil {
-		return err
+		return "", fmt.Errorf("failed to get bonding curve and associated bonding curve: %w", err)
 	}
 	// Get token metadata address
 	metadata, tokenMetadataProgramID, err := solana.FindTokenMetadataAddress(mint.PublicKey())
 	if err != nil {
-		return fmt.Errorf("can't find token metadata address: %w", err)
+		return "", fmt.Errorf("can't find token metadata address: %w", err)
 	}
 	log.Println("found following metadata address: ", metadata, tokenMetadataProgramID)
 
-	// create priority fee instructions
+	// Default pump.fun compute limit is 250k, so we set the same here.
 	culInst := cb.NewSetComputeUnitLimitInstruction(uint32(250000))
-	cupInst := cb.NewSetComputeUnitPriceInstruction(100000)
+	cupInst, err := getComputUnitPriceInstr(rpcClient, user)
+	if err != nil {
+		return "", fmt.Errorf("failed to get compute unit price instructions: %w", err)
+	}
 	// Create the pump fun instruction
 	instr := pump.NewCreateInstruction(
 		name,
@@ -125,7 +144,7 @@ func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.Private
 	// get recent block hash
 	recent, err := rpcClient.GetLatestBlockhash(context.TODO(), rpc.CommitmentFinalized)
 	if err != nil {
-		return fmt.Errorf("error while getting recent block hash: %w", err)
+		return "", fmt.Errorf("error while getting recent block hash: %w", err)
 	}
 	instructions := []solana.Instruction{
 		culInst.Build(),
@@ -136,7 +155,7 @@ func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.Private
 	if buyAmountSol > 0 {
 		buyInstructions, err := getBuyInstructions(rpcClient, mint.PublicKey(), user.PublicKey(), SolToLamp(buyAmountSol), percentage)
 		if err != nil {
-			return fmt.Errorf("failed to get buy instructions: %w", err)
+			return "", fmt.Errorf("failed to get buy instructions: %w", err)
 		}
 		instructions = append(instructions, buyInstructions...)
 	}
@@ -146,7 +165,7 @@ func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.Private
 		solana.TransactionPayer(user.PublicKey()),
 	)
 	if err != nil {
-		return fmt.Errorf("error while creating new transaction: %w", err)
+		return "", fmt.Errorf("error while creating new transaction: %w", err)
 	}
 	txSig, err := tx.Sign(
 		func(key solana.PublicKey) *solana.PrivateKey {
@@ -160,7 +179,7 @@ func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.Private
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("can't sign transaction: %w", err)
+		return "", fmt.Errorf("can't sign transaction: %w", err)
 	}
 	// NOTE: for debugging, to be removed
 	fmt.Println(tx.String(), txSig[0].String())
@@ -172,9 +191,7 @@ func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.Private
 		tx,
 	)
 	if err != nil {
-		return fmt.Errorf("can't send and confirm new transaction: %w", err)
+		return "", fmt.Errorf("can't send and confirm new transaction: %w", err)
 	}
-	log.Println("create token transaction signature: ", sig.String())
-
-	return nil
+	return sig.String(), nil
 }
