@@ -17,22 +17,6 @@ import (
 	"github.com/prdsrm/pumpdotfun-go-sdk/pump"
 )
 
-func getComputUnitPriceInstrBuyOrSell(rpcClient *rpc.Client, user solana.PrivateKey, ata solana.PublicKey, mint solana.PublicKey, metadata solana.PublicKey, bondingCurve solana.PublicKey, associatedBondingCurveData solana.PublicKey) (*cb.SetComputeUnitPrice, error) {
-	// create priority fee instructions
-	out, err := rpcClient.GetRecentPrioritizationFees(context.TODO(), solana.PublicKeySlice{user.PublicKey(), pump.ProgramID, pumpFunMintAuthority, globalPumpFunAddress, solana.TokenMetadataProgramID, system.ProgramID, token.ProgramID, associatedtokenaccount.ProgramID, solana.SysVarRentPubkey, pumpFunEventAuthority, mint, metadata})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get recent prioritization fees: %w", err)
-	}
-	var median uint64
-	length := uint64(len(out))
-	for _, fee := range out {
-		median = fee.PrioritizationFee
-	}
-	median /= length
-	cupInst := cb.NewSetComputeUnitPriceInstruction(median)
-	return cupInst, nil
-}
-
 func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey, mint solana.PublicKey, sellTokenAmount uint64, percentage float64, all bool) (string, error) {
 	// create priority fee instructions
 	culInst := cb.NewSetComputeUnitLimitInstruction(uint32(250000))
