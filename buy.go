@@ -3,7 +3,6 @@ package pumpdotfunsdk
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/gagliardetto/solana-go"
@@ -59,7 +58,7 @@ func BuyToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey
 	if err != nil {
 		return "", fmt.Errorf("error while creating new transaction: %w", err)
 	}
-	txSig, err := tx.Sign(
+	_, err = tx.Sign(
 		func(key solana.PublicKey) *solana.PrivateKey {
 			if user.PublicKey().Equals(key) {
 				return &user
@@ -70,8 +69,6 @@ func BuyToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey
 	if err != nil {
 		return "", fmt.Errorf("can't sign transaction: %w", err)
 	}
-	// NOTE: for debugging, to be removed
-	fmt.Println(tx.String(), txSig[0].String())
 	// Send transaction, and wait for confirmation:
 	sig, err := confirm.SendAndConfirmTransaction(
 		context.TODO(),
@@ -82,7 +79,6 @@ func BuyToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey
 	if err != nil {
 		return "", fmt.Errorf("can't send and confirm new transaction: %w", err)
 	}
-	log.Println("buy transaction signature: ", sig.String())
 	return sig.String(), nil
 }
 

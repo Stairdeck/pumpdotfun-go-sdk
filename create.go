@@ -3,7 +3,6 @@ package pumpdotfunsdk
 import (
 	"context"
 	"fmt"
-	"log"
 
 	// General solana packages.
 	"github.com/gagliardetto/solana-go"
@@ -70,7 +69,6 @@ func getBondingCurveAndAssociatedBondingCurve(mint solana.PublicKey) (*BondingCu
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive bonding curve address: %w", err)
 	}
-	log.Println("bonding curve: ", bondingCurve.String())
 	// Derive associated bonding curve address.
 	associatedBondingCurve, _, err := solana.FindAssociatedTokenAddress(
 		bondingCurve,
@@ -79,7 +77,6 @@ func getBondingCurveAndAssociatedBondingCurve(mint solana.PublicKey) (*BondingCu
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive associated bonding curve address: %w", err)
 	}
-	log.Println("associated bonding curve: ", associatedBondingCurve.String())
 	return &BondingCurvePublicKeys{
 		BondingCurve:           bondingCurve,
 		AssociatedBondingCurve: associatedBondingCurve,
@@ -108,11 +105,10 @@ func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.Private
 		return "", fmt.Errorf("failed to get bonding curve and associated bonding curve: %w", err)
 	}
 	// Get token metadata address
-	metadata, tokenMetadataProgramID, err := solana.FindTokenMetadataAddress(mint.PublicKey())
+	metadata, _, err := solana.FindTokenMetadataAddress(mint.PublicKey())
 	if err != nil {
 		return "", fmt.Errorf("can't find token metadata address: %w", err)
 	}
-	log.Println("found following metadata address: ", metadata, tokenMetadataProgramID)
 
 	// Default pump.fun compute limit is 250k, so we set the same here.
 	culInst := cb.NewSetComputeUnitLimitInstruction(uint32(250000))
@@ -167,7 +163,7 @@ func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.Private
 	if err != nil {
 		return "", fmt.Errorf("error while creating new transaction: %w", err)
 	}
-	txSig, err := tx.Sign(
+	_, err = tx.Sign(
 		func(key solana.PublicKey) *solana.PrivateKey {
 			if user.PublicKey().Equals(key) {
 				return &user
@@ -181,8 +177,6 @@ func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.Private
 	if err != nil {
 		return "", fmt.Errorf("can't sign transaction: %w", err)
 	}
-	// NOTE: for debugging, to be removed
-	fmt.Println(tx.String(), txSig[0].String())
 	// Send transaction, and wait for confirmation:
 	sig, err := confirm.SendAndConfirmTransaction(
 		context.TODO(),
