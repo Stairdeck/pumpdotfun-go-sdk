@@ -61,7 +61,7 @@ func main() {
 		"TEST", // name
 		"https://example.com", // metadata uri
 		0.1, // buy 0.1 SOL
-		0.98, // 2% slippage
+		200, // 2% slippage
 	)
 	if err != nil {
 		log.Fatalln("can't create token:", err)

@@ -30,7 +30,7 @@ func shouldCreateAta(rpcClient *rpc.Client, ata solana.PublicKey) (bool, error) 
 // The mintAddr is the address of the mint of the token.
 // This function will send a transaction to the network to buy the token.
 // This function will return an error if the transaction fails.
-func BuyToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey, mint solana.PublicKey, buyAmountSol float64, percentage float64) (string, error) {
+func BuyToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey, mint solana.PublicKey, buyAmountSol float64, slippageBasisPoint uint) (string, error) {
 	// create priority fee instructions
 	culInst := cb.NewSetComputeUnitLimitInstruction(uint32(250000))
 	cupInst := cb.NewSetComputeUnitPriceInstruction(100000)
@@ -39,7 +39,7 @@ func BuyToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey
 		cupInst.Build(),
 	}
 	// get buy instructions
-	buyInstructions, err := getBuyInstructions(rpcClient, mint, user.PublicKey(), SolToLamp(buyAmountSol), percentage)
+	buyInstructions, err := getBuyInstructions(rpcClient, mint, user.PublicKey(), SolToLamp(buyAmountSol), slippageBasisPoint)
 	if err != nil {
 		return "", fmt.Errorf("failed to get buy instructions: %w", err)
 	}
@@ -82,7 +82,7 @@ func BuyToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey
 	return sig.String(), nil
 }
 
-func getBuyInstructions(rpcClient *rpc.Client, mint solana.PublicKey, user solana.PublicKey, solAmount uint64, percentage float64) ([]solana.Instruction, error) {
+func getBuyInstructions(rpcClient *rpc.Client, mint solana.PublicKey, user solana.PublicKey, solAmount uint64, slippageBasisPoint uint) ([]solana.Instruction, error) {
 	bondingCurveData, err := getBondingCurveAndAssociatedBondingCurve(mint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get bonding curve data: %w", err)
@@ -113,6 +113,7 @@ func getBuyInstructions(rpcClient *rpc.Client, mint solana.PublicKey, user solan
 		return nil, fmt.Errorf("can't fetch bonding curve: %w", err)
 	}
 	// We set 2% slippage.
+	percentage := float64(1.0 - (slippageBasisPoint / 10e3))
 	buy := calculateBuyQuote(solAmount, bondingCurve, percentage)
 	buyInstr := pump.NewBuyInstruction(
 		buy.Uint64(),

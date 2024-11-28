@@ -17,7 +17,7 @@ import (
 	"github.com/prdsrm/pumpdotfun-go-sdk/pump"
 )
 
-func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey, mint solana.PublicKey, sellTokenAmount uint64, percentage float64, all bool) (string, error) {
+func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey, mint solana.PublicKey, sellTokenAmount uint64, slippageBasisPoint uint, all bool) (string, error) {
 	// create priority fee instructions
 	culInst := cb.NewSetComputeUnitLimitInstruction(uint32(250000))
 	cupInst := cb.NewSetComputeUnitPriceInstruction(uint64(10000))
@@ -26,7 +26,7 @@ func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKe
 		cupInst.Build(),
 	}
 	// get sell instructions
-	sellInstructions, err := getSellInstructions(rpcClient, user, mint, sellTokenAmount, percentage, all)
+	sellInstructions, err := getSellInstructions(rpcClient, user, mint, sellTokenAmount, slippageBasisPoint, all)
 	if err != nil {
 		return "", fmt.Errorf("failed to get sell instructions: %w", err)
 	}
@@ -70,7 +70,7 @@ func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKe
 }
 
 // getSellInstructions is a function that returns the pump.fun instructions to sell the token
-func getSellInstructions(rpcClient *rpc.Client, user solana.PrivateKey, mint solana.PublicKey, sellTokenAmount uint64, percentage float64, all bool) (*pump.Instruction, error) {
+func getSellInstructions(rpcClient *rpc.Client, user solana.PrivateKey, mint solana.PublicKey, sellTokenAmount uint64, slippageBasisPoint uint, all bool) (*pump.Instruction, error) {
 	ata, _, err := solana.FindAssociatedTokenAddress(
 		user.PublicKey(),
 		mint,
@@ -97,6 +97,7 @@ func getSellInstructions(rpcClient *rpc.Client, user solana.PrivateKey, mint sol
 	if err != nil {
 		return nil, fmt.Errorf("can't fetch bonding curve: %w", err)
 	}
+	percentage := float64(1.0 - (slippageBasisPoint / 10e3))
 	minSolOutput := calculateSellQuote(sellTokenAmount, bondingCurve, percentage)
 	sellInstr := pump.NewSellInstruction(
 		sellTokenAmount,
