@@ -1,8 +1,13 @@
 package pumpdotfunsdk
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
 
 	// General solana packages.
 	"github.com/gagliardetto/solana-go"
@@ -188,4 +193,89 @@ func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.Private
 		return "", fmt.Errorf("can't send and confirm new transaction: %w", err)
 	}
 	return sig.String(), nil
+}
+
+type CreateTokenMetadataRequest struct {
+	Filename    string
+	Name        string
+	Symbol      string
+	Description string
+	Twitter     string
+	Telegram    string
+	Website     string
+}
+
+type CreateTokenMetadataResponse struct {
+	Name        string `json:"name"`
+	Symbol      string `json:"symbol"`
+	Description string `json:"description"`
+	ShowName    bool   `json:"showName"`
+	CreatedOn   string `json:"createdOn"`
+	Twitter     string `json:"twitter"`
+	Telegram    string `json:"telegram"`
+	Website     string `json:"website"`
+
+	Image       string `json:"image"`
+	MetadataUri string `json:"metadataUri"`
+}
+
+func CreateTokenMetadata(client *http.Client, create CreateTokenMetadataRequest) (*CreateTokenMetadataResponse, error) {
+	// Create a buffer to hold the form data
+	var b bytes.Buffer
+	writer := multipart.NewWriter(&b)
+
+	// Add the file from URL
+	resp, err := http.Get(create.Filename)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	// Create the form file
+	part, err := writer.CreateFormFile("file", "image.png")
+	if err != nil {
+		return nil, err
+	}
+	// Copy the file content to the form file
+	_, err = io.Copy(part, resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the other form fields
+	writer.WriteField("name", create.Name)
+	writer.WriteField("symbol", create.Symbol)
+	writer.WriteField("description", create.Description)
+	writer.WriteField("twitter", create.Twitter)
+	writer.WriteField("telegram", create.Telegram)
+	writer.WriteField("website", create.Website)
+	writer.WriteField("showName", "true")
+
+	// Close the writer to finalize the form data
+	err = writer.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the HTTP request
+	req, err := http.NewRequest("POST", "https://pump.fun/api/ipfs", &b)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	// Perform the HTTP request
+	resp, err = client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Parse the JSON response
+	var result CreateTokenMetadataResponse
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }
