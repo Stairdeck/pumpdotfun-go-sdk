@@ -17,7 +17,15 @@ import (
 	"github.com/prdsrm/pumpdotfun-go-sdk/pump"
 )
 
-func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey, mint solana.PublicKey, sellTokenAmount uint64, slippageBasisPoint uint, all bool) (string, error) {
+func SellToken(
+	rpcClient *rpc.Client,
+	wsClient *ws.Client,
+	user solana.PrivateKey,
+	mint solana.PublicKey,
+	sellTokenAmount uint64,
+	slippageBasisPoint uint,
+	all bool,
+) (string, error) {
 	// create priority fee instructions
 	culInst := cb.NewSetComputeUnitLimitInstruction(uint32(250000))
 	cupInst := cb.NewSetComputeUnitPriceInstruction(uint64(10000))
@@ -26,7 +34,14 @@ func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKe
 		cupInst.Build(),
 	}
 	// get sell instructions
-	sellInstructions, err := getSellInstructions(rpcClient, user, mint, sellTokenAmount, slippageBasisPoint, all)
+	sellInstructions, err := getSellInstructions(
+		rpcClient,
+		user,
+		mint,
+		sellTokenAmount,
+		slippageBasisPoint,
+		all,
+	)
 	if err != nil {
 		return "", fmt.Errorf("failed to get sell instructions: %w", err)
 	}
@@ -70,7 +85,14 @@ func SellToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKe
 }
 
 // getSellInstructions is a function that returns the pump.fun instructions to sell the token
-func getSellInstructions(rpcClient *rpc.Client, user solana.PrivateKey, mint solana.PublicKey, sellTokenAmount uint64, slippageBasisPoint uint, all bool) (*pump.Instruction, error) {
+func getSellInstructions(
+	rpcClient *rpc.Client,
+	user solana.PrivateKey,
+	mint solana.PublicKey,
+	sellTokenAmount uint64,
+	slippageBasisPoint uint,
+	all bool,
+) (*pump.Instruction, error) {
 	ata, _, err := solana.FindAssociatedTokenAddress(
 		user.PublicKey(),
 		mint,
@@ -79,7 +101,11 @@ func getSellInstructions(rpcClient *rpc.Client, user solana.PrivateKey, mint sol
 		return nil, fmt.Errorf("failed to derive associated token account: %w", err)
 	}
 	if all {
-		tokenAccounts, err := rpcClient.GetTokenAccountBalance(context.TODO(), ata, rpc.CommitmentConfirmed)
+		tokenAccounts, err := rpcClient.GetTokenAccountBalance(
+			context.TODO(),
+			ata,
+			rpc.CommitmentConfirmed,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("can't get amount of token in balance: %w", err)
 		}
@@ -97,7 +123,7 @@ func getSellInstructions(rpcClient *rpc.Client, user solana.PrivateKey, mint sol
 	if err != nil {
 		return nil, fmt.Errorf("can't fetch bonding curve: %w", err)
 	}
-	percentage := float64(1.0 - (slippageBasisPoint / 10e3))
+	percentage := convertSlippageBasisPointsToPercentage(slippageBasisPoint)
 	minSolOutput := calculateSellQuote(sellTokenAmount, bondingCurve, percentage)
 	sellInstr := pump.NewSellInstruction(
 		sellTokenAmount,
@@ -126,7 +152,11 @@ func getSellInstructions(rpcClient *rpc.Client, user solana.PrivateKey, mint sol
 // tokenAmount is the amount of token you want to sell
 // bondingCurve is the bonding curve data, that will help to calculate the number of sol to get
 // percentage is the slippage, 0.98 means 2% slippage
-func calculateSellQuote(tokenAmount uint64, bondingCurve *BondingCurveData, percentage float64) *big.Int {
+func calculateSellQuote(
+	tokenAmount uint64,
+	bondingCurve *BondingCurveData,
+	percentage float64,
+) *big.Int {
 	amount := big.NewInt(int64(tokenAmount))
 
 	// Clone bonding curve data to avoid mutations

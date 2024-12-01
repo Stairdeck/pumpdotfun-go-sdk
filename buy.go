@@ -30,7 +30,14 @@ func shouldCreateAta(rpcClient *rpc.Client, ata solana.PublicKey) (bool, error) 
 // The mintAddr is the address of the mint of the token.
 // This function will send a transaction to the network to buy the token.
 // This function will return an error if the transaction fails.
-func BuyToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey, mint solana.PublicKey, buyAmountSol float64, slippageBasisPoint uint) (string, error) {
+func BuyToken(
+	rpcClient *rpc.Client,
+	wsClient *ws.Client,
+	user solana.PrivateKey,
+	mint solana.PublicKey,
+	buyAmountSol float64,
+	slippageBasisPoint uint,
+) (string, error) {
 	// create priority fee instructions
 	culInst := cb.NewSetComputeUnitLimitInstruction(uint32(250000))
 	cupInst := cb.NewSetComputeUnitPriceInstruction(100000)
@@ -39,7 +46,13 @@ func BuyToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey
 		cupInst.Build(),
 	}
 	// get buy instructions
-	buyInstructions, err := getBuyInstructions(rpcClient, mint, user.PublicKey(), SolToLamp(buyAmountSol), slippageBasisPoint)
+	buyInstructions, err := getBuyInstructions(
+		rpcClient,
+		mint,
+		user.PublicKey(),
+		SolToLamp(buyAmountSol),
+		slippageBasisPoint,
+	)
 	if err != nil {
 		return "", fmt.Errorf("failed to get buy instructions: %w", err)
 	}
@@ -82,7 +95,13 @@ func BuyToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey
 	return sig.String(), nil
 }
 
-func getBuyInstructions(rpcClient *rpc.Client, mint solana.PublicKey, user solana.PublicKey, solAmount uint64, slippageBasisPoint uint) ([]solana.Instruction, error) {
+func getBuyInstructions(
+	rpcClient *rpc.Client,
+	mint solana.PublicKey,
+	user solana.PublicKey,
+	solAmount uint64,
+	slippageBasisPoint uint,
+) ([]solana.Instruction, error) {
 	bondingCurveData, err := getBondingCurveAndAssociatedBondingCurve(mint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get bonding curve data: %w", err)
@@ -101,7 +120,8 @@ func getBuyInstructions(rpcClient *rpc.Client, mint solana.PublicKey, user solan
 		return nil, fmt.Errorf("can't check if we should create ATA: %w", err)
 	}
 	if shouldCreateATA {
-		ataInstr, err := associatedtokenaccount.NewCreateInstruction(user, user, mint).ValidateAndBuild()
+		ataInstr, err := associatedtokenaccount.NewCreateInstruction(user, user, mint).
+			ValidateAndBuild()
 		if err != nil {
 			return nil, fmt.Errorf("can't create associated token account: %w", err)
 		}
@@ -113,7 +133,7 @@ func getBuyInstructions(rpcClient *rpc.Client, mint solana.PublicKey, user solan
 		return nil, fmt.Errorf("can't fetch bonding curve: %w", err)
 	}
 	// We set 2% slippage.
-	percentage := float64(1.0 - (slippageBasisPoint / 10e3))
+	percentage := convertSlippageBasisPointsToPercentage(slippageBasisPoint)
 	buy := calculateBuyQuote(solAmount, bondingCurve, percentage)
 	buyInstr := pump.NewBuyInstruction(
 		buy.Uint64(),
@@ -136,11 +156,19 @@ func getBuyInstructions(rpcClient *rpc.Client, mint solana.PublicKey, user solan
 	return instructions, nil
 }
 
+func convertSlippageBasisPointsToPercentage(slippageBasisPoint uint) float64 {
+	return 1.0 - float64(slippageBasisPoint)/10e3
+}
+
 // calculateBuyQuote calculates how many tokens can be purchased given a specific amount of SOL, bonding curve data, and percentage.
 // solAmount is the amount of sol that you want to buy
 // bondingCurve is the BondingCurveData, that includes the real, virtual token/sol reserves, in order to calculate the price.
 // percentage is what you want to use to set the slippage. For 2% slippage, you want to set the percentage to 0.98.
-func calculateBuyQuote(solAmount uint64, bondingCurve *BondingCurveData, percentage float64) *big.Int {
+func calculateBuyQuote(
+	solAmount uint64,
+	bondingCurve *BondingCurveData,
+	percentage float64,
+) *big.Int {
 	// Convert solAmount to *big.Int
 	solAmountBig := big.NewInt(int64(solAmount))
 
