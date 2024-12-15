@@ -44,7 +44,3 @@ func fetchBondingCurve(rpcClient *rpc.Client, bondingCurvePubKey solana.PublicKe
 		VirtualSolReserves:   virtualSolReserves,
 	}, nil
 }
-
-func SolToLamp(sol float64) uint64 {
-	return uint64(sol * 1000000000)
-}

@@ -52,7 +52,7 @@ func main() {
 	wsURL := rpc.MainNetBeta_WS
 	c := getClient(rpcURL, wsURL)
 	mint := solana.NewWallet()
-	err = pumpdotfunsdk.CreateToken(
+	_, err = pumpdotfunsdk.CreateToken(
 		c.RpcClient,
 		c.WsClient,
 		privateKey,
@@ -60,7 +60,7 @@ func main() {
 		"TEST", // symbol
 		"TEST", // name
 		"https://example.com", // metadata uri
-		0.1, // buy 0.1 SOL
+		100000000, // buy 0.1 SOL
 		200, // 2% slippage
 	)
 	if err != nil {

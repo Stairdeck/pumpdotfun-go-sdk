@@ -35,7 +35,7 @@ func BuyToken(
 	wsClient *ws.Client,
 	user solana.PrivateKey,
 	mint solana.PublicKey,
-	buyAmountSol float64,
+	buyAmountLamports uint64,
 	slippageBasisPoint uint,
 ) (string, error) {
 	// create priority fee instructions
@@ -50,7 +50,7 @@ func BuyToken(
 		rpcClient,
 		mint,
 		user.PublicKey(),
-		SolToLamp(buyAmountSol),
+		buyAmountLamports,
 		slippageBasisPoint,
 	)
 	if err != nil {

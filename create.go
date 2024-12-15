@@ -104,7 +104,7 @@ func getComputUnitPriceInstr(rpcClient *rpc.Client, user solana.PrivateKey) (*cb
 	return cupInst, nil
 }
 
-func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey, mint *solana.Wallet, name string, symbol string, uri string, buyAmountSol float64, slippageBasisPoint uint) (string, error) {
+func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.PrivateKey, mint *solana.Wallet, name string, symbol string, uri string, buyAmountLamports uint64, slippageBasisPoint uint) (string, error) {
 	bondingCurveData, err := getBondingCurveAndAssociatedBondingCurve(mint.PublicKey())
 	if err != nil {
 		return "", fmt.Errorf("failed to get bonding curve and associated bonding curve: %w", err)
@@ -153,8 +153,8 @@ func CreateToken(rpcClient *rpc.Client, wsClient *ws.Client, user solana.Private
 		instruction,
 	}
 	// get buy instructions
-	if buyAmountSol > 0 {
-		buyInstructions, err := getBuyInstructions(rpcClient, mint.PublicKey(), user.PublicKey(), SolToLamp(buyAmountSol), slippageBasisPoint)
+	if buyAmountLamports > 0 {
+		buyInstructions, err := getBuyInstructions(rpcClient, mint.PublicKey(), user.PublicKey(), buyAmountLamports, slippageBasisPoint)
 		if err != nil {
 			return "", fmt.Errorf("failed to get buy instructions: %w", err)
 		}
