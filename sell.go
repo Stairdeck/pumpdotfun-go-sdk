@@ -25,6 +25,7 @@ func SellToken(
 	sellTokenAmount uint64,
 	slippageBasisPoint uint,
 	all bool,
+	minSolAmount *float64,
 ) (string, error) {
 	// create priority fee instructions
 	culInst := cb.NewSetComputeUnitLimitInstruction(uint32(250000))
@@ -41,6 +42,7 @@ func SellToken(
 		sellTokenAmount,
 		slippageBasisPoint,
 		all,
+		minSolAmount,
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to get sell instructions: %w", err)
@@ -92,6 +94,7 @@ func getSellInstructions(
 	sellTokenAmount uint64,
 	slippageBasisPoint uint,
 	all bool,
+	minSolAmount *float64,
 ) (*pump.Instruction, error) {
 	ata, _, err := solana.FindAssociatedTokenAddress(
 		user.PublicKey(),
@@ -124,7 +127,14 @@ func getSellInstructions(
 		return nil, fmt.Errorf("can't fetch bonding curve: %w", err)
 	}
 	percentage := convertSlippageBasisPointsToPercentage(slippageBasisPoint)
-	minSolOutput := calculateSellQuote(sellTokenAmount, bondingCurve, percentage)
+
+	var minSolOutput *big.Int
+	if minSolAmount != nil {
+		minSolOutput = new(big.Int).SetInt64(int64(*minSolAmount * 1_000_000))
+	} else {
+		minSolOutput = calculateSellQuote(sellTokenAmount, bondingCurve, percentage)
+	}
+
 	sellInstr := pump.NewSellInstruction(
 		sellTokenAmount,
 		minSolOutput.Uint64(),
