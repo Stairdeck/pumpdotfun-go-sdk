@@ -2,7 +2,7 @@ package pumpdotfunsdk_test
 
 import (
 	"context"
-	pumpdotfunsdk "github.com/prdsrm/pumpdotfun-go-sdk"
+	pumpdotfunsdk "github.com/Stairdeck/pumpdotfun-go-sdk"
 	"os"
 	"testing"
 

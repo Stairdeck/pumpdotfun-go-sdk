@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/Stairdeck/pumpdotfun-go-sdk/pump"
 	"github.com/gagliardetto/solana-go"
 	associatedtokenaccount "github.com/gagliardetto/solana-go/programs/associated-token-account"
 	cb "github.com/gagliardetto/solana-go/programs/compute-budget"
@@ -13,7 +14,6 @@ import (
 	"github.com/gagliardetto/solana-go/rpc"
 	confirm "github.com/gagliardetto/solana-go/rpc/sendAndConfirmTransaction"
 	"github.com/gagliardetto/solana-go/rpc/ws"
-	"github.com/prdsrm/pumpdotfun-go-sdk/pump"
 )
 
 // checks if the associated token account for the mint and our bot's public key exists.
