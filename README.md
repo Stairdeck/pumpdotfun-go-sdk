@@ -7,7 +7,7 @@ A SDK allowing you to create, buy and sell pump.fun tokens in Golang.
 ## Installation
 
 ```bash
-go get github.com/prdsrm/pumpdotfun-go-sdk
+go get github.com/Stairdeck/pumpdotfun-go-sdk
 ```
 
 ## Usage
@@ -26,7 +26,7 @@ import (
 	"github.com/gagliardetto/solana-go/rpc/ws"
 
 	// Pump.fun Go SDK.
-	pumpdotfunsdk "github.com/prdsrm/pumpdotfun-go-sdk"
+	pumpdotfunsdk "github.com/Stairdeck/pumpdotfun-go-sdk"
 )
 
 type Client struct {

@@ -29,7 +29,7 @@ import (
 	associatedtokenaccount "github.com/gagliardetto/solana-go/programs/associated-token-account"
 
 	// Pump.fun code generated from its IDL file.
-	"github.com/prdsrm/pumpdotfun-go-sdk/pump"
+	"github.com/Stairdeck/pumpdotfun-go-sdk/pump"
 )
 
 // Contains commonly used addresses with the pump.fun program, that are not present
