@@ -1,4 +1,4 @@
-module github.com/prdsrm/pumpdotfun-go-sdk
+module github.com/Stairdeck/pumpdotfun-go-sdk
 
 go 1.23.1
 
